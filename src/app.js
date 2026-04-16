@@ -9,8 +9,9 @@ const morgan = require("./config/morgan");
 
 const app = express();
 
+// Trust the first proxy (Render, Railway, etc.) so express-rate-limit
+// can read the real client IP from X-Forwarded-For
 app.set("trust proxy", 1);
-
 
 app.use(helmet());
 
@@ -31,7 +32,28 @@ app.use(morgan.errorHandler);
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://frountend-mini-8ott4zqnb-aditya-vermas-projects-8809f241.vercel.app"
+      ];
+      
+      // Allow any vercel preview URL or explicitly allowed origins
+      if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        // If you define a specific CLIENT_URL in env, allow it too
+        if (process.env.CLIENT_URL === origin) {
+           callback(null, true);
+        } else {
+           callback(new Error('Not allowed by CORS'));
+        }
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
@@ -39,6 +61,7 @@ app.use(
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+
 
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok", message: "Backend service is running." });
