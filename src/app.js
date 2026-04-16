@@ -9,6 +9,8 @@ const morgan = require("./config/morgan");
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 
 app.use(helmet());
 
